@@ -1,8 +1,6 @@
-## Welcome to GitHub Pages
+## pGENMi Code
 
-You can use the [editor on GitHub](https://github.com/KnowEnG/pgenmi/edit/master/README.md) to maintain and preview the content for your website in Markdown files.
-
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+This github page contains code to associate TFs with Drugs. To run the program, 
 
 ### Markdown
 
