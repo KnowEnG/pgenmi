@@ -4,7 +4,7 @@ BIN = ./bin
 OBJ = .obj
 SRC = src
 
-all: $(BIN)/dbeta $(BIN)/pgmeval $(BIN)/pgmllr $(BIN)/post $(BIN)/pSweep
+all: $(BIN)/pgmllr
 
 $(OBJ)/%.o: $(SRC)/%.cpp
 	$(CXX) $(CXXFLAGS) $(SQLCXXFLAGS) -c $< -o $@  
