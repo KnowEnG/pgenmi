@@ -4,7 +4,7 @@ BIN = ./bin
 OBJ = .obj
 SRC = src
 
-all: $(BIN)/pgmllr
+all: $(BIN)/pgenmi
 
 $(OBJ)/%.o: $(SRC)/%.cpp
 	$(CXX) $(CXXFLAGS) $(SQLCXXFLAGS) -c $< -o $@  
@@ -18,7 +18,7 @@ $(BIN)/post : $(OBJ)/post.o $(OBJ)/table.o $(OBJ)/pgm.o $(OBJ)/helper.o
 $(BIN)/pgmeval : $(OBJ)/pgmeval.o $(OBJ)/table.o $(OBJ)/pgm.o $(OBJ)/helper.o
 	$(CXX) $(LDFLAGS) $^ $(SQLLDFLAGS) -o $@
 
-$(BIN)/pgmllr : $(OBJ)/pgmllr.o $(OBJ)/table.o $(OBJ)/pgm.o $(OBJ)/helper.o
+$(BIN)/pgenmi : $(OBJ)/pgenmi.o $(OBJ)/table.o $(OBJ)/pgm.o $(OBJ)/helper.o
 	$(CXX) $(LDFLAGS) $^ $(SQLLDFLAGS) -o $@
 
 $(BIN)/pSweep : $(OBJ)/pSweep.o $(OBJ)/table.o $(OBJ)/pgm.o $(OBJ)/helper.o
