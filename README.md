@@ -1,6 +1,6 @@
 ## pGENMi Code
 
-This github page contains code to associate TFs with Drugs. The paper is posted on bioArxiv (
+This github page contains code to associate TFs with Drugs. The paper is posted on [bioArxiv](http://www.biorxiv.org/content/early/2017/06/02/145607)
 
 ### Making
 Modify Makefile with your platforms specific needs. This code uses C++11.
