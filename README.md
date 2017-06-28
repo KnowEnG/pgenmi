@@ -29,7 +29,7 @@ ENSG00000000500 1.00  1 0 0
 The header should include PVAL in the first column and then A#, where the # indexes the regulatory evidence for the column.
 All subsequent datalines should begin with a symbol in the first column, p-value in the second column, a 1 for the third column, and then the respective regulatory evidences for the remaining columns.
 
-### Running pgenmi
+### Running pGENMi
 
 The pgenmi program accepts three arguments: the path to the file with the aforementioned input data, a drug label, and a tf label
     
