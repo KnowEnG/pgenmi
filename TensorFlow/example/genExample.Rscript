@@ -1,0 +1,37 @@
+#!/usr/bin/Rscript
+
+args <- commandArgs(TRUE);
+num_samples <- as.numeric(args[1]);
+alpha <- as.double(args[2]);
+mix_proportions <- as.double(args[3]);
+path_to_output_file <- as.character(args[4]);
+
+if (length(args) != 4) {
+ cat(paste0(lengths(args), " is not enough args (4)\n"));
+ cat(paste0("genExample.R num_samples alpha mix_proportions path_to_output_file\n"));
+ quit();
+}
+
+if (alpha <= 0 || alpha > 1) {
+ cat(paste0("Alpha: ", alpha," is not in the appropriate range [0,1]. Exiting\n"));
+ quit();
+}
+
+if (mix_proportions <= 0 || mix_proportions >= 1) {
+ cat(paste0("Mix Proportions: ", mix_proportions," is not in the appropriate range [0,1]. Exiting\n"));
+ quit();
+}
+
+num_unif = floor(num_samples * mix_proportions);
+num_beta = ceiling(num_samples * (1 - mix_proportions));
+p = c(runif(num_unif), rbeta(num_beta, alpha, 1))
+a_unif = sample(as.numeric(c(rep(1,floor(0.10 * num_unif)), rep(0, ceiling(0.90 * num_unif)))), num_unif);
+a_beta = sample(as.numeric(c(rep(1,floor(0.50 * num_beta)), rep(0, ceiling(0.50 * num_beta)))), num_beta);
+a1 = c(a_unif, a_beta);
+a0 = 0 * a1 + 1;
+gene = paste0("GENE", seq(1, num_samples));
+dt = as.data.frame(cbind(gene, p, a0, a1));
+colnames(dt) <- c("GENE", "PVAL", "A0", "A1");
+rownames(dt) <- dt[["GENE"]];
+dt <- dt[,-1];
+write.table(x=dt, file=path_to_output_file, col.names=T, row.names=T, sep="\t", quote=F);
