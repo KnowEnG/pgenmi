@@ -41,7 +41,7 @@ drug, tf, 2 * LLR, H1 LogLikelihood (H1LL), H1 LogLikelihood Before Convergence 
 
 ## Running TensorFlow pGENMi
 
-The TensorFlow directory contains a pgenmi.py file that behaves nearly identically to C++ pgenmi; however, it leverages built in optimizers that can be modified and customized.
+The TensorFlow directory contains a pgenmi.py file that behaves nearly identically to C++ pgenmi; however, it leverages built in optimizers that can be modified and customized. This of course presumes that your machine has python3 and TensorFlow installed.
 
 The TensorFlow/example directory contains a NOTES file on how to run TensorFlow pGENMi properly. It follows a similar structure to the C++ version.
 
