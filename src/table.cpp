@@ -11,29 +11,44 @@
 
 using namespace std;
 
-table::table(const string& _filename) : filename(_filename), annot_sizes(), ncol(0), nrow(0){
+table::table(const string& _filename) : filename(_filename), num_non_zero(), num_features(0), num_rows(0), num_cols(0), pval(0), col_names(), row_names(), feat_names(){
 	readfile(filename);
 }
 
-/**
- * Print data table
- */
+
+// Print data table
 void table::print(){
-	if (ncol == 0) { 
+	if (num_features == 0) {
 		return;
 	}
-	cout << cols[0];
-	for (int i = 1; i < ncol + 1; i++){
-		cout << "\t" << cols[i];
+
+	cout << col_names[0];
+	for (int i = 1; i < col_names.size(); i++){
+		cout << "\t" << col_names[i];
 	}
 	cout << "\n";
-	for (int i = 0; i < nrow; i++){
-		cout << rows[i] << "\t" << y[i];
-		for (int j = 0; j < ncol; j++){
-			cout << "\t" << annot[i][j];
+
+	for (int i = 0; i < num_rows; i++){
+		// print rowname and pvalue
+		cout << row_names[i] << "\t" << pval[i];
+		// print rest of data
+		for (int j = 0; j < num_features; j++){
+			cout << "\t" << data[i][j];
 		}
 		cout << "\n";
 	}
+}
+
+
+long double table::_cast_string_to_long_double(const vector<string>& elem, int index, int num_rows){
+	try {
+		return stold(elem[index]);
+	} catch (const out_of_range& err) {
+		cerr << "Out of range error: " << err.what() << "\n";
+		cerr << "Trying to cast element (" << num_rows <<  ", " << index << ") = " << elem[index] << "  to long double\n";
+		exit(1);
+	}
+	return -1;
 }
 
 /**
@@ -42,60 +57,73 @@ void table::print(){
 int table::readfile(const string& filename) {
 	ifstream ifile(filename.c_str());
 	if (!ifile.is_open()){
-		cout << "Error: " << filename << " could not be read\n";
-		return 1;
+		cerr << "Error: " << filename << " could not be read\n";
+		exit(2);
 	} else if (ifile.peek() == ifstream::traits_type::eof()){
-		cout << "Error: " << filename << " is empty.\n";
-		return 2;
+		cerr << "Error: " << filename << " is empty.\n";
+		exit(3);
 	}
+	// Get col_names from header
 	string line;
 	ifile.clear();
 	ifile.seekg(0, ios::beg);
-	getline(ifile, line);	
-	cols = split(line, '\t');
-	// header has one fewer column
-	ncol = cols.size() - 1;
-	nrow = 0;
-	annot_sizes.resize(ncol, 0);
-	y.resize(0);
+	getline(ifile, line);
+	col_names = split(line, '\t');
+
+	// Get number of columns from 1st data entry
+	getline(ifile, line);
+	int num_cols = split(line, '\t').size();
+	num_features = num_cols - 2;
+
+	// Get feature names from col_names and num_features
+	int offset = col_names.size() - num_features;
+
+	for (int i = 0; i < num_features; i++){
+		feat_names.push_back(col_names[i + offset]);
+	}
+
+	// Resize data sizes matrix to (num_features) and pval matrix to be ()
+	num_non_zero.resize(num_features, 0);
+	pval.resize(0);
+
+	// Reset and skip header
+	ifile.clear();
+	ifile.seekg(0, ios::beg);
+	getline(ifile, line);
+
+	// For each data line, split by tab
 	while(getline(ifile,line)) {
 		vector<string> elem = split(line, '\t');
-		unsigned int nelem = elem.size();
-		if (nelem != (ncol + 2)){
-			cout << "Error: Row " << nrow + 1 << " has " << nelem << " not " << ncol << " elements.\n";
-			annot.clear();
-			cols.clear();
-			rows.clear();
-			nrow = 0;
-			ncol = 0;
-			return 3;
+
+		// Check if it has the correct number of columns (num_features + gene + pval)
+		if (elem.size() != (num_features + 2)){
+			cerr << "Error: Row " << num_rows + 1 << " has " << elem.size() << " not " << num_features << " elements.\n";
+			data.clear();
+			col_names.clear();
+			row_names.clear();
+			pval.clear();
+			num_non_zero.clear();
+			num_rows = 0;
+			num_features = 0;
+			exit(4);
 		}
-		rows.push_back(elem[0]);
-		annot.push_back(vector<long double>(ncol,0));
-		long double p = 0;
-		try {
-			p = stold(elem[1]);
-		} catch (const out_of_range& err) {
-			cerr << "Out of range error: " << err.what() << "\n";
-			cerr << "Trying to cast element (" << nrow <<  ", 1) = " << elem[1] << "  to long double\n";
-			exit(1);
-		}
-		y.push_back(p);
-		for (int i = 0; i < ncol; i++){
-			try {
-				annot[nrow][i] = stold(elem[i+2]);
-				if (annot[nrow][i] == 1) {
-					annot_sizes[i] = annot_sizes[i] + 1;
-				}
-			} catch (const out_of_range& err) {
-				cerr << "Out of range error: " << err.what() << "\n";
-				cerr << "Trying to cast element (" << nrow << ", " << (ncol + 2) << ") = " << elem[i + 2] << "  to long double\n";
-				exit(1);
+
+		//Get row_names for first element and push_back a vector of (num_features) zeros.
+		row_names.push_back(elem[0]);
+		data.push_back(vector<long double>(num_features,0));
+		num_rows++;
+
+		//Get pvalue safely from second element
+		pval.push_back(_cast_string_to_long_double(elem, 1, num_rows - 1));
+
+		// For each feature
+		for (int i = 0; i < num_features; i++){
+			// Get value
+			data[num_rows - 1][i] = _cast_string_to_long_double(elem, i+2, num_rows - 1);
+			if (data[num_rows - 1][i] != 0) {
+				num_non_zero[i]++;
 			}
 		}
-		nrow++;
 	}
 	return 0;
 }
-
-

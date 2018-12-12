@@ -7,37 +7,84 @@
 
 using namespace std;
 
+vector<int> string_to_mask(const string& model, int num_features){
+	vector<string> elem = split(model, ',');
+	vector<int> mask(num_features, 0);
+	mask[0] = 1;
+	for (int i = 0; i < elem.size(); i++) {
+		// Maybe clean string here or something
+		int col = stoi(elem[i]);
+		if (col > 0 && col <= num_features){
+			mask[col - 1] = 1;
+		}
+	}
+	return mask;
+}
+
+
+void model_list_to_mask(vector<vector<int>>& model_masks, const string& model_list_str, int num_features){
+	vector<string> elem = split(model_list_str, '|');
+	for (int i = 0; i < elem.size(); i++){
+		model_masks.push_back(string_to_mask(elem[i], num_features));
+	}
+	return;
+}
+
+
 long double l2norm(const long double a, const long double b){
 	return abs(a - b);
 }
+
 
 long double l2norm(const vector<long double>& a, const vector<long double>&b){
 	int n = a.size();
 	long double ssd = 0;
 	long double diff = 0;
 	for (int i = 0; i < n; i++){
-		diff = a[i] - b[i];	
+		diff = a[i] - b[i];
 		ssd += diff*diff;
 	}
 	return sqrt(ssd);
 }
 
-long double sig(long double _w) {
-	return (long double) 1.0/(1 + exp(-1 * _w));
+
+int sum(const vector<int>& x) {
+	int s = 0;
+	for (int i = 0; i < x.size(); i++) {
+		s += x[i];
+	}
+	return s;
 }
 
-long double sig(const vector<long double>& _a, const vector<long double>& _w){
+
+long double sig(long double w) {
+	return (long double) 1.0/(1 + exp(-1 * w));
+}
+
+
+long double sig(const vector<long double>& x, const vector<long double>& w){
 	long double s = 0;
-	for (int i = 0; i < _w.size(); i++){
-		s += _a[i] * _w[i];
+	for (int i = 0; i < w.size(); i++){
+		s += x[i] * w[i];
 	}
 	return (long double) 1.0/(1 + exp(-1 * s));
 }
+
+
+long double sig(const vector<long double>& x, const vector<long double>& w, const vector<int>& mask){
+	long double s = 0;
+	for (int i = 0; i < w.size(); i++){
+		s += x[i] * w[i] * mask[i];
+	}
+	return (long double) 1.0/(1 + exp(-1 * s));
+}
+
 
 long double dbeta(long double y, long double alpha) {
 	long double beta = tgamma(alpha)*tgamma(1.0)/tgamma(alpha + 1);
 	return std::pow(y, alpha - 1)/beta;
 }
+
 
 vector<string> & split(const string &s, char delim, vector<string> &elems) {
 	stringstream ss(s);
@@ -48,21 +95,13 @@ vector<string> & split(const string &s, char delim, vector<string> &elems) {
 	return elems;
 }
 
+
 vector<string> split(const string &s, char delim) {
 	vector<string> elems;
 	split(s, delim, elems);
 	return elems;
 }
 
-string vec2str(const vector<long double>& v) {
-	stringstream s;
-	s.precision(15);
-	s << v[0];
-	for (int i = 1; i < v.size(); i++){
-		s << "\t" << v[i];
-	}
-	return s.str();	
-}
 
 long double file2alpha(const string& s) {
 	//synth.alpha_0.1.t_1.w_-1.44043714599684_1.76122314715758_0.982014360371977.pi_0.6_0.6.tsv
@@ -76,6 +115,7 @@ long double file2alpha(const string& s) {
 	return stold(alpha_raw);
 }
 
+
 long double file2pi(const string& s) {
 	//synth.alpha_0.1.t_1.w_-1.44043714599684_1.76122314715758_0.982014360371977.pi_0.6_0.6.tsv
 	vector<string> elems;
@@ -86,6 +126,7 @@ long double file2pi(const string& s) {
 	return stold(str);
 }
 
+
 long double file2trial(const string& s) {
 	//synth.alpha_0.1.t_1.w_-1.44043714599684_1.76122314715758_0.982014360371977.pi_0.6_0.6.tsv
 	vector<string> elems;
@@ -95,6 +136,7 @@ long double file2trial(const string& s) {
 	str.replace(pos,2,"");
 	return stold(str);
 }
+
 
 vector<long double> file2weight(const string& s, unsigned int natt) {
 	vector<string> elems;

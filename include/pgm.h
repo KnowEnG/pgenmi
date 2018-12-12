@@ -9,32 +9,14 @@
 
 using namespace std;
 
-class model0 {
-	public: 
-	vector<vector<long double> > post;	
-	long double w;
-	long double init_w;
-	long double alpha;
-	long double init_alpha;
-	long double init_ll;
-	unsigned int iter;
-	long double train_ll;
-	long double train_lll;
-	unsigned int natt;
-};
-
-class model1 {
-	public: 
-	vector<long double> w;
-	vector<long double> init_w;
-	vector<vector<long double> > post;	
-	long double alpha;
-	long double init_alpha;
-	long double init_ll;
-	unsigned int iter;
-	long double train_ll;
-	long double train_lll;
-	unsigned int natt;
+class model {
+	public:
+		vector<long double> w;
+		vector<vector<long double> > post;
+		long double alpha;
+		long double loglik;
+		long double loglik_prev;
+		unsigned int iter;
 };
 
 
@@ -47,35 +29,45 @@ class pgm {
 		static long double ubalpha;
 		static unsigned int max_iter;
 		static unsigned int min_iter;
-		static unsigned int nrestart;
-		static unsigned int maxneg;
-		static long double beta; 	
+		static unsigned int max_loglik_decr;
+		static unsigned int queue_size;
+
 		// Attributes
-		model0 h0;
-		model1 h1;
 		long double eps;
+		string name;
+		vector<string> w_names;
 		vector<long double> eta;
-		
-		// Methods
-		pgm(const table & dt, long double _eps=0.0001);
-		void estepH0(const table &);
-		void estepH1(const table &);
+		vector<int> mask;
+		model final;
+		model init;
+		unsigned int num_features;
+
+		// Constructor
+		pgm(const table & dt,const vector<int> mask, const string& name="PGM", long double _eps=0.0001);
+
+		//Initializers should be called before training
+		void initialize_params();
+		void initialize_params(const table&, const pgm&);
+
+
+		//Training Methods
+		void train(const table&);
+		void train(const table&, model&);
+		void estep(const table &, model& );
 		long double alpha_mstep(const table &, const vector<vector<long double> >&);
-		long double w_mstepH0(const table&);
-		long double w_mstep_stochH0(const table&);
-		vector<long double> w_mstepH1(const table&);
-		vector<long double> w_mstep_stochH1(const table&);
-		long double loglikH0(const table&);
-		long double loglikH1(const table&);
-		void trainH0(const table&);
-		void trainH1(const table&);
+		vector<long double> w_mstep(const table&, const model&);
+		void update_loglikelihoods(const table&);
+
+		// Helper methods
+		long double loglikelihood(const table&, const model&);
+		string header();
+		string to_string();
 
 		// Static Methods
-		static long double loglik(const table&, const vector<long double>&, const long double);
-		static pgm trainRestart(const table& dt);
+		static long double loglikelihood(const table&, const vector<long double>&, const long double);
 
 		//Friend Methods
-		 friend ostream& operator<< (ostream&, const pgm& );
+		// friend ostream& operator<< (ostream&, const pgm& );
 };
 
 #endif

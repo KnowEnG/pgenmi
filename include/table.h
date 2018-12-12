@@ -11,14 +11,16 @@ class table {
 
 		// Attributes
 		string filename;
-		unsigned int ncol;
-		unsigned int nrow;
-		vector<vector<long double> > annot;
-		vector<long double> y;
-		vector<string> cols;
-		vector<string> rows;
-
-		vector<int> annot_sizes;	
+		unsigned int num_cols;
+		unsigned int num_features;
+		unsigned int num_rows;
+		vector<vector<long double> > data;
+		vector<long double> pval;
+		vector<string> feat_names;
+		vector<string> col_names;
+		vector<string> row_names;
+		vector<int> num_non_zero;
+		
 		// Methods
 		void print();
 		int readfile(const string&);
@@ -26,7 +28,8 @@ class table {
 
 	private:
 
-		// Methods
+		long double _cast_string_to_long_double(const vector<string>& elem, int index, int num_rows);
+
 };
 
 #endif

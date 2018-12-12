@@ -22,89 +22,92 @@ long double pgm::lbalpha = 0.000001;
 long double pgm::ubalpha = 1 - lbalpha;
 unsigned int pgm::max_iter = 300;
 unsigned int pgm::min_iter = 25;
-unsigned int pgm::nrestart = 100; // usually 100
-unsigned int pgm::maxneg   = 20;
-long double pgm::beta = 0.0001;
+unsigned int pgm::max_loglik_decr = 20;
+unsigned int pgm::queue_size = 20;
 
-/**
- *
- */
-pgm::pgm(const table& dt, long double _eps) : eps(_eps), eta(), h0(), h1() { 
-	eta.resize(dt.ncol);
-	for (int i = 0; i < dt.ncol; i++){
-		eta[i] = 2/((long double) dt.annot_sizes[i]);
+pgm::pgm(const table& dt, const vector<int> mask, const string& name, long double _eps) : mask(mask), name(name), eps(_eps), eta(), num_features(0), init(), final(), w_names() {
+	//Get total features and masked
+	// Sample alpha and w and get number of non_zero_entries for each feature
+	// Set learning rate to be proprotional to features that are non-zero
+	num_features = sum(mask);
+	w_names = dt.feat_names;
+	init.alpha = 1;
+	init.w.resize(dt.num_features, 1);
+	eta.resize(dt.num_features, 0);
+	for (int i = 0; i < dt.num_features; i++){
+		init.w[i] = mask[i];
+		eta[i] = 2/((long double) dt.num_non_zero[i]);
 	}
-	h0.natt = 1;
-	h1.natt = dt.ncol;
-	h1.w.resize(h1.natt);
-	for (int i = 0; i < dt.nrow; i++){
-		h0.post.push_back(vector<long double>(2,0));	
-		h1.post.push_back(vector<long double>(2,0));	
-		h1.post[i][0] = unif(reng);
-		h1.post[i][1] = 1 - h1.post[i][0];
-		h0.post[i][0] = h1.post[i][0];
-		h0.post[i][1] = 1 - h0.post[i][0];
+	for (int i = 0; i < dt.num_rows; i++){
+		init.post.push_back(vector<long double>(2,0));
+		init.post[i][1] = 1;
 	}
-	h1.alpha = unif(reng);
-	h1.init_alpha = h1.alpha;
-	h0.alpha = h1.alpha;
-	h0.init_alpha = h0.alpha;
-	
-	// Set model specific
-	for (int i = 0; i < h1.natt; i++){
-		h1.w[i] = unif(reng) - 0.5;
-	}
-	h0.w = h1.w[0];
-	h0.init_w = h0.w;
-	h1.init_w = h1.w;
-	h0.init_ll = loglikH0(dt);
-	h1.init_ll = loglikH1(dt);
+	final = init;
 }
 
-/**
- * Compute Expectations for null.
- */
-void pgm::estepH0(const table &dt) {
-	long double g1 = 0;
-	long double j0 = 0;
-	long double j1 = 0;
-	for (int i = 0; i < dt.nrow; i++){
-		g1 = sig(h0.w);
-		j0 = (1 - g1);
-		j1 = dbeta(dt.y[i], h0.alpha) * g1;
-		h0.post[i][0] = j0/(j0 + j1);
-		h0.post[i][1] = j1/(j0 + j1);
+
+// Initialize parameters from static uniform random number generators
+void pgm::initialize_params() {
+	init.alpha = unif(reng);
+	for (int i = 0; i < mask.size(); i++){
+		init.w[i] = mask[i] * (unif(reng) - 0.5);
 	}
-	return;
+	for (int i = 0; i < init.post.size(); i++){
+		init.post[i][0] = unif(reng);
+		init.post[i][1] = 1 - init.post[i][0];
+	}
+
+	// Get loglikelihood for initial loglik (loglik) and lastloglik (lll)
+	init.loglik = 0;
+	init.loglik_prev = init.loglik;
+	final = init;
 }
 
-/**
- * Compute Expectations for alternative.
- */
-void pgm::estepH1(const table &dt) {
-	long double g1 = 0;
-	long double j0 = 0;
-	long double j1 = 0;
-	for (int i = 0; i < dt.nrow; i++){
-		g1 = sig(dt.annot[i], h1.w);
-		j0 = (1 - g1);
-		j1 = dbeta(dt.y[i], h1.alpha) * g1;
-		h1.post[i][0] = j0/(j0 + j1);
-		h1.post[i][1] = j1/(j0 + j1);
+
+//Initialize parameters from pgm h. This resets both initial and final models.
+void pgm::initialize_params(const table& dt,const pgm& h){
+	init = h.init;
+	for (int i = 0; i < mask.size(); i++){
+		init.w[i] = mask[i] * h.init.w[i];
 	}
+	init.loglik = loglikelihood(dt, init);
+	init.loglik_prev = init.loglik;
+	final = init;
+}
+
+
+void pgm::update_loglikelihoods(const table& dt) {
+	init.loglik_prev = init.loglik;
+	init.loglik = loglikelihood(dt, init);
+	final.loglik_prev = final.loglik;
+	final.loglik = loglikelihood(dt, final);
 	return;
 }
 
 
-/**
- * Compute new alpha given posterior
- */
-long double pgm::alpha_mstep(const table &dt, const vector<vector<long double> >& post) {
+// Use only model weights to update posterior
+void pgm::estep(const table& dt, model& h){
+	long double g1 = 0;
+	long double j0 = 0;
+	long double j1 = 0;
+	for (int i = 0; i < dt.num_rows; i++){
+		g1 = sig(dt.data[i], h.w, mask);
+		j0 = (1 - g1);
+		j1 = dbeta(dt.pval[i], h.alpha) * g1;
+		h.post[i][0] = j0/(j0 + j1);
+		h.post[i][1] = j1/(j0 + j1);
+	}
+	return;
+}
+
+
+//Use only posterior to maximize alpha
+long double pgm::alpha_mstep(const table &dt, const vector<vector<long double> >& post){
 	long double numer = 0;
 	long double denom = 0;
-	for (int i = 0; i < dt.nrow; i++){
+	for (int i = 0; i < dt.num_rows; i++){
 		numer += post[i][1];
-		denom += post[i][1] * log(dt.y[i]);
+		denom += post[i][1] * log(dt.pval[i]);
 	}
 	long double ret = -1 * numer/denom;
 	if (ret < 0) { ret = lbalpha; }
@@ -112,337 +115,134 @@ long double pgm::alpha_mstep(const table &dt, const vector<vector<long double> >
 	return ret;
 }
 
-long double pgm::w_mstep_stochH0(const table& dt) {
-	long double _w = h0.w;
-	long double _wn = _w;
-	long double norm = eps + 1;
-	while(norm >= eps) {
-		long double s = 0;
-		for (int i = 0; i < dt.nrow; i++){
-			_wn += eta[0] * (1 - sig(_wn) - h0.post[i][0]) + beta * (_wn - _w);
-		}
-		norm = l2norm(_w,_wn);
-		//cout << norm << "\t" << _w << "\t" << _wn << "\n";
-		_w = _wn;
-	}
-	return _w; 
 
-}
-
-/**
- * Gradient descent to find new w for H0
- */
-long double pgm::w_mstepH0(const table& dt) {
-	long double _w = h0.w;
-	long double _wn = 0;
+// Use only posterior to maximize w through gradient descent
+vector<long double> pgm::w_mstep(const table& dt, const model& h) {
+	vector<long double> w = h.w;
+	vector<long double> w_next(dt.num_features, 0);
+	vector<long double> s(dt.num_features, 0);
+	vector<long double> c(dt.num_features, 0);
 	long double norm = eps + 1;
-	while(norm >= eps) {
-		long double s = 0;
-		for (int i = 0; i < dt.nrow; i++){
-			s += sig(_w) + h0.post[i][0];
-		}
-		for (int i = 0; i < dt.ncol; i++){
-			_wn = _w + eta[0] * (dt.nrow - s);
-		}
-		norm = l2norm(_w,_wn);
-	//	cout << norm << "\t" << _w << "\t" << _wn << "\n";
-		_w = _wn;
-	}
-	return _w; 
-};
 
-/**
- * Gradient descent to find new w
- */
-vector<long double> pgm::w_mstepH1(const table& dt) {
-	vector<long double> _w = h1.w;
-	vector<long double> _wn(h1.natt, 0);
-	vector<long double> s(h1.natt, 0);
-	vector<long double> c(h1.natt, 0);
-	long double norm = eps + 1;
+	// While distance between w and w_next >= eps
 	while(norm >= eps) {
-		fill(s.begin(), s.end(),     0);
-		fill(c.begin(), c.end(),     0);
-		for (int i = 0; i < dt.nrow; i++){
-			for (int j = 0; j < h1.natt; j++){
-				if (dt.annot[i][j] != 0) {
-					s[j] += sig(dt.annot[i], _w) + h1.post[i][0];
-					c[j] = c[j] + 1;
+		fill(s.begin(), s.end(), 0);
+		fill(c.begin(), c.end(), 0);
+		for (int j = 0; j < dt.num_features; j++){
+			if (mask[j]) {
+				for (int i = 0; i < dt.num_rows; i++){
+					if (dt.data[i][j] != 0) {
+						s[j] += sig(dt.data[i], w, mask) + h.post[i][0];
+						c[j] = c[j] + 1;
+					}
 				}
 			}
 		}
-		for (int i = 0; i < dt.ncol; i++){
-			_wn[i] = _w[i] + eta[i] * (c[i] - s[i]);
+		for (int i = 0; i < dt.num_features; i++){
+			w_next[i] = mask[i] * (w[i] + eta[i] * (c[i] - s[i]));
 		}
-		norm = l2norm(_w,_wn);
+		norm = l2norm(w,w_next);
 		//cout << norm << "\t" << vec2str(_w) << "\t" << vec2str(_wn) << "\n";
-		_w = _wn;
+		w = w_next;
 	}
-	return _w; 
+	return w;
 };
 
-/**
- * Gradient descent to find new w
- */
-vector<long double> pgm::w_mstep_stochH1(const table& dt) {
-	vector<long double> _w = h1.w;
-	vector<long double> _wn = _w;
-	long double norm = eps + 1;
-	while(norm >= eps) {
-		for (int i = 0; i < dt.nrow; i++){
-			for (int j = 0; j < h1.natt; j++){
-				if (dt.annot[i][j] != 0) {
-					_wn[j] += eta[j] * (1 - sig(dt.annot[i], _wn) - h1.post[i][0]) + beta * (_wn[j] - _w[j]);
-				}
-			}
-		}
-		norm = l2norm(_w,_wn);
-		//cout << norm << "\t" << vec2str(_w) << "\t" << vec2str(_wn) << "\n";
-		_w = _wn;
-	}
-	return _w; 
-};
 
-/**
- * Computes loglikelihood of data in dt for null model
- */
-long double pgm::loglikH0(const table& dt) {
-	long double ll = 0;
-	for (int i = 0; i < dt.nrow; i++){
-		ll += log(sig(h0.w) * (dbeta(dt.y[i], h0.alpha) - 1) + 1);
+//Computes loglikelihood of data in dt for model
+long double pgm::loglikelihood(const table& dt, const model& h) {
+	long double loglik = 0;
+	for (int i = 0; i < dt.num_rows; i++){
+		loglik += log(sig(dt.data[i], h.w, mask) * (dbeta(dt.pval[i], h.alpha) - 1) + 1);
 	}
-	return ll;
+	return loglik;
 }
 
-/**
- * Computes loglikelihood of data in dt for alternative model
- */
-long double pgm::loglikH1(const table& dt) {
-	long double ll = 0;
-	for (int i = 0; i < dt.nrow; i++){
-		ll += log(sig(dt.annot[i], h1.w) * (dbeta(dt.y[i], h1.alpha) - 1) + 1);
+
+//Computes loglikelihood of data in dt using _w and _alpha
+long double pgm::loglikelihood(const table& dt, const vector<long double>& w, const long double alpha) {
+	long double loglik = 0;
+	for (int i = 0; i < dt.num_rows; i++){
+		loglik += log(sig(dt.data[i], w) * (dbeta(dt.pval[i], alpha) - 1) + 1);
 	}
-	return ll;
+	return loglik;
 }
 
-/**
- * Computes loglikliehood of data in dt using _w and _alpha
- */
-long double pgm::loglik(const table& dt, const vector<long double>& _w, const long double _alpha) {
-	long double ll = 0;
-	for (int i = 0; i < dt.nrow; i++){
-		ll += log(sig(dt.annot[i], _w) * (dbeta(dt.y[i], _alpha) - 1) + 1);
-	}
-	return ll;
+void pgm::train(const table& dt) {
+	train(dt, final);
+	return;
 }
 
 /*
  * Train a model on dt using a more robust methodology
- * Change fixed threshold to percentage threshold
+ * Tolerate some decreases in a window of
  * Tolerate in a window a fixed number of decreases or something.
  */
-void pgm::trainH0(const table& dt) {
-	h0.iter = 0;
-	h0.train_ll = 0;
-	h0.train_lll = 0;
-	long double dll  = 0;
+void pgm::train(const table& dt, model& h) {
+	h.iter = 0;
+	h.loglik = 0;
+	h.loglik_prev = 0;
+	int num_loglik_decr = 0;
+	model max_h = h;
 	queue<int> q;
-	int nneg = 0;
-	bool thresh = true;
-	long double max_lll = 0;
-	long double max_ll = h0.init_ll;
-	long double max_alpha = h0.init_alpha;
-	long double max_w = h0.init_w;
-	while ((nneg < maxneg || h0.iter < min_iter) && h0.iter < max_iter) {
-		//E-step
-		estepH0(dt);
-	
-		//M-step
-		//h0.w     = w_mstepH0(dt);
-		h0.w     = w_mstepH0(dt);
-		h0.alpha = alpha_mstep(dt, h0.post);
-		
-		//Log Likelihood
-		h0.train_lll  = h0.train_ll;
-		h0.train_ll   = loglikH0(dt);
-		dll  = h0.train_ll - h0.train_lll;
+	// while we haven't decrease maximally and we are within iteration bounds
+	while ((num_loglik_decr < max_loglik_decr || h.iter < min_iter) && h.iter <max_iter) {
+		//E-step update h.post given h.w, h.mask. and h.alpha
+		estep(dt, h);
 
-		// Check max ll
-		if (h0.train_ll > max_ll) {
-			max_lll = h0.train_lll;
-			max_ll =  h0.train_ll;
-			max_alpha = h0.alpha;
-			max_w = h0.w;
-		}
-		
-		// Update queue if loglikelihood decreasing
-		if (dll < 0){
-			q.push(0);
-			nneg++;
-		} else {
-			q.push(1);
-		}
-
-		// Make sure you have at least min_iter data points
-		if ((h0.iter >= min_iter) && (!q.empty())) {
-			if (q.front() == 0){
-				nneg--;
-			}
-			q.pop();
-		}
-		if (h0.iter > min_iter && thresh) {
-			thresh = false;
-		//	cout << "HERE\n";
-		}
-		//cout << ll << "\t" << lll << "\t" << dll << "\t" << nneg << "\n";
-		h0.iter++;
-	}
-	h0.train_lll = max_lll;
-	h0.train_ll = max_ll;
-	h0.alpha = max_alpha;
-	h0.w = max_w; 
-	return;
-}
-
-
-/*
- * Train a model on dt using a more robust methodology
- * Change fixed threshold to percentage threshold
- * Tolerate in a window a fixed number of decreases or something.
- */
-void pgm::trainH1(const table& dt) {
-	h1.iter = 0;
-	h1.train_ll = 0;
-	h1.train_lll = 0;
-	long double dll  = 0;
-	queue<int> q;
-	int nneg = 0;
-	bool thresh = true;
-	long double max_lll = 0;
-	long double max_ll = h1.init_ll;
-	long double max_alpha = h1.init_alpha;
-	vector<long double> max_w = h1.init_w;
-	while ((nneg < maxneg || h1.iter < min_iter) && h1.iter < max_iter) {
-		//E-step
-		estepH1(dt);
-	
-		//M-step
-		//h1.w     = w_mstepH1(dt);
-		h1.w     = w_mstepH1(dt);
-		h1.alpha = alpha_mstep(dt, h1.post);
+		//M-step: Maximize h.w and h.alpha given h.post
+		h.alpha = alpha_mstep(dt, h.post);
+		h.w = w_mstep(dt, h);
 
 		//Log Likelihood
-		h1.train_lll  = h1.train_ll;
-		h1.train_ll   = loglikH1(dt);
-		dll  = h1.train_ll - h1.train_lll;
+		h.loglik_prev  = h.loglik;
+		h.loglik   = loglikelihood(dt, h);
 
 		// Check max ll
-		if (h1.train_ll > max_ll) {
-			max_lll = h1.train_lll;
-			max_ll =  h1.train_ll;
-			max_alpha = h1.alpha;
-			max_w = h1.w;
+		if (h.loglik > max_h.loglik) {
+			max_h = h;
 		}
 
 		// Update queue if loglikelihood decreasing
-		if (dll < 0){
-			q.push(0);
-			nneg++;
-		} else {
-			q.push(1);
-		}
 
 		// Make sure you have at least min_iter data points
-		if ((h1.iter >= min_iter) && (!q.empty())) {
-			if (q.front() == 0){
-				nneg--;
+		if (h.iter > min_iter) {
+			int loglik_decr = int((h.loglik -h.loglik_prev) < 0);
+			q.push(loglik_decr);
+			num_loglik_decr = num_loglik_decr + 1 - loglik_decr;
+			if (q.size() == queue_size){
+				num_loglik_decr = num_loglik_decr + q.front() - 1;
+				q.pop();
 			}
-			q.pop();
 		}
-		if (h1.iter > min_iter && thresh) {
-			thresh = false;
-		//	cout << "HERE\n";
-		}
-		//cout << ll << "\t" << lll << "\t" << dll << "\t" << nneg << "\n";
-		h1.iter++;
+		h.iter++;
 	}
-	h1.train_lll = max_lll;
-	h1.train_ll = max_ll;
-	h1.alpha = max_alpha;
-	h1.w = max_w; 
+	h.iter++;
+	h = max_h;
 	return;
 }
 
-/*
- * Train a model on dt
- * Change fixed threshold to percentage threshold
- * Tolerate in a window a fixed number of decreases or something.
-void pgm::train(const table& dt){
-	int i = 0;
-	long double dll  = 0;
-	long double lll  = 0;
-	long double llll = 0;
-	long double ll   = 0;
-	long double _alpha = 0;
-	vector<long double> _w;
-	while ((dll > eps || i < min_iter) && i < max_iter) {
-		//E-step
-		estep(dt);
-		//M-step
-		_alpha = alpha_mstep(dt);
-		_w     = w_mstep(dt);
-		//Log Likelihood
-		llll = lll;
-		lll  = ll;
-		ll   = loglik(dt);	
-		dll  = ll - lll;
-		if (dll < 0){ 
-			ll  = lll;
-			lll = llll;
-			break; 
-		}
-		alpha = _alpha;
-		w = _w; 
-		i++;
-	}
-	train_iter = i;
-	train_lll  = lll;
-	train_ll   = ll;
-	return;
-}
-*/
-
-/**
- * Train multiple PGM models with restart.
- * Return best according to ll.
- */
-pgm pgm::trainRestart(const table& dt) {
-	pgm best(dt);
-	best.trainH1(dt);
-	best.trainH0(dt);
-	//cout << "N\t" << best.h1.train_ll << "\t" << best.h0.train_ll << "\t" << best.h1.train_ll - best.h0.train_ll << "\n";
-	for (int i = 0; i < nrestart; i++){
-		if (i % 15 == 0) {
-			//cerr << i/((double) nrestart) << "% ..";
-		}
-		pgm mod(dt);	
-		mod.trainH1(dt);
-		mod.trainH0(dt);
-		if (mod.h0.train_ll > best.h0.train_ll) {
-			best.h0 = mod.h0;
-		}
-		if (mod.h1.train_ll > best.h1.train_ll) {
-			best.h1 = mod.h1;
-		}
-		//cout << i << "\t" <<  best.h1.train_ll << "\t" << best.h0.train_ll << "\t" << best.h1.train_ll - best.h0.train_ll << "\n";
-	}
-	//cerr << "\n";
-	return best;
+string pgm::header() {
+	stringstream ss;
+	ss << "NAME" << "\t" << "NUM_FEATURES" << "\t";
+	ss << vec2str(w_names, "MASK_") << "\t";
+	ss << "INIT_ITER" << "\t" << "INIT_LOGLIK" << "\t";
+	ss << "INIT_LOGLIK_PREV" << "\t" << vec2str(w_names, "INIT_") << "\t";
+	ss << "INIT_ALPHA" << "\t";
+	ss << "TRAINED_ITER" << "\t" << "TRAINED_LOGLIK" << "\t";
+	ss << "TRAINED_LOGLIK_PREV" << "\t" << vec2str(w_names, "TRAINED_") << "\t";
+	ss << "TRAINED_ALPHA";
+	return ss.str();
 }
 
-/**
- * Print out pgm
- */
-ostream& operator<< (ostream& out, const pgm& m) {
-	return out;
+string pgm::to_string(){
+	stringstream ss;
+	ss << name << "\t" << num_features << "\t" << vec2str(mask) << "\t";
+	ss << init.iter << "\t";
+	ss << init.loglik << "\t" << init.loglik_prev << "\t";
+	ss << vec2str(init.w) << "\t" << init.alpha << "\t";
+	ss << final.iter << "\t";
+	ss << final.loglik << "\t" << final.loglik_prev << "\t";
+	ss << vec2str(final.w) << "\t" << final.alpha << "\t";
+	return ss.str();
 }
