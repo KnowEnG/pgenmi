@@ -1,5 +1,6 @@
 #ifndef _TEMPLATED_HELPER_H
 #define _TEMPLATED_HELPER_H
+#include <sstream>
 #include <string>
 #include <vector>
 
