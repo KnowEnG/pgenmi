@@ -201,7 +201,7 @@ int main(int argc, char** argv) {
   }
   cout << "TF\tDRUG\t" << models[0].header();
   for (int i = 0; i < models.size(); i++) {
-    cout << "\n" << tf << "\t" << drug << "\t" << models[0].to_string();
+    cout << "\n" << tf << "\t" << drug << "\t" << models[i].to_string();
   }
   cout << "\n";
   return 0;
