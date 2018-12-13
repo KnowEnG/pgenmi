@@ -41,6 +41,9 @@ pgm::pgm(const table& dt, const vector<int> mask, const string& name,
   num_features = sum(mask);
   w_names = dt.feat_names;
   init.alpha = 1;
+  init.iter = 0 ;
+  init.loglik = 0;
+  init.loglik_prev = 0;
   init.w.resize(dt.num_features, 1);
   eta.resize(dt.num_features, 0);
   for (int i = 0; i < dt.num_features; i++) {
@@ -66,6 +69,7 @@ void pgm::initialize_params() {
   }
 
   // Get loglikelihood for initial loglik (loglik) and lastloglik (lll)
+  init.iter = 0;
   init.loglik = 0;
   init.loglik_prev = init.loglik;
   final = init;
@@ -190,7 +194,7 @@ void pgm::train(const table& dt, model& h) {
   h.iter = 0;
   h.loglik = 0;
   h.loglik_prev = 0;
-  int num_loglik_decr = 0;
+  unsigned int num_loglik_decr = 0;
   model max_h = h;
   queue<int> q;
   // while we haven't decrease maximally and we are within iteration bounds
