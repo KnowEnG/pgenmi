@@ -13,19 +13,14 @@ This should produce pgenmi which is the main program that produces output on the
 ### Input Data
 
 The format of the data to pgmllr is TSV. It includes a header like below:
-
-GENE    PVAL  A0  A1  A2
-
-ENSG00000000001 0.01 1 1 0
-
-ENSG00000000002 0.30 1 0 1
-
-ENSG00000000003 0.04 1 1 1
-
+```
+GENE    PVAL    A0  A1  A2
+GENE_A  0.01    1   1   0
+GENE_B  0.30    1   0   1
+GENE_C  0.04    1   1   1
 ...
-
-ENSG00000000500 1.00  1 0 0
-
+GENE_D  1.00    1   0   0
+```
 The header should include PVAL in the first column and then A#, where the # indexes the regulatory evidence for the column.
 All subsequent datalines should begin with a symbol in the first column, p-value in the second column, a 1 for the third column, and then the respective regulatory evidences for the remaining columns.
 
@@ -36,13 +31,13 @@ The pgenmi program accepts three arguments: the path to the file with the aforem
     ./pgenmi OPTIONS /path/to/input/file
 
 The output is in the following format where , are replaced by tabs. Each model is a row in the file. The loglikelihood of the learned model and its initialization likelihood, along with parameters, are printed.
-
+```
 TF, DRUG, MODELNAME, NUM_FEATURES, MODEL BITMASK, INITAL_MODEL, TRAINED_MODEL
-
+```
 A model is printed as follows:
-
+```
 MODEL_ITER, MODEL_LOGLIK, MODEL_LOGLIK_PREV, MODEL_WEIGHTS, MODEL_ALPHA
-
+```
 Here MODEL is either trained or initial. Thus, each row has both initial and trained parameters and performance.
 
 What distinguishes rows from one another are bitmasks, which are the length of the weight vectors. These bitmasks remove certain parameters from the model. The first bit in a bitmask, corresponding to whether or not to include the intercept term of the model, is always 1.
