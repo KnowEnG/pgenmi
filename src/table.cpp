@@ -24,26 +24,36 @@ table::table(const string& _filename)
   readfile(filename);
 }
 
+string table::header() {
+  stringstream ss;
+  ss << col_names[0];
+  for (int i = 1; i < col_names.size(); i++) {
+    ss << "\t" << col_names[i];
+  }
+  return ss.str();
+}
+
+string table::row2str(const unsigned int i){
+  stringstream ss;
+  ss << row_names[i] << "\t" << pval[i];
+  // print rest of data
+  for (int j = 0; j < num_features; j++) {
+    ss << "\t" << data[i][j];
+  }
+  return ss.str();
+}
+
 // Print data table
 void table::print() {
   if (num_features == 0) {
     return;
   }
 
-  cout << col_names[0];
-  for (int i = 1; i < col_names.size(); i++) {
-    cout << "\t" << col_names[i];
-  }
-  cout << "\n";
+  cout << header() << "\n";
 
   for (int i = 0; i < num_rows; i++) {
     // print rowname and pvalue
-    cout << row_names[i] << "\t" << pval[i];
-    // print rest of data
-    for (int j = 0; j < num_features; j++) {
-      cout << "\t" << data[i][j];
-    }
-    cout << "\n";
+    cout << row2str(i) << "\n";
   }
 }
 

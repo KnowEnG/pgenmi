@@ -24,6 +24,8 @@ class table {
   void print();
   int readfile(const string&);
   table(const string&);
+  string header();
+  string row2str(const unsigned int);
 
  private:
   long double _cast_string_to_long_double(const vector<string>& elem, int index,

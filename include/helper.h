@@ -8,6 +8,8 @@
 
 using namespace std;
 
+vector<long double> str_vec2ld_vec(const vector<string>&);
+long double str2ld(const string&);
 vector<int> string_to_mask(const string&, int);
 void model_list_to_mask(vector<vector<int>>&, const string&, int);
 long double l2norm(const long double a, const long double b);

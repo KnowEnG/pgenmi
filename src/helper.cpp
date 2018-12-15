@@ -1,11 +1,35 @@
 #include "helper.h"
 #include <cmath>
 #include <iostream>
+#include <stdexcept>
 #include <sstream>
 #include <string>
 #include <vector>
 
 using namespace std;
+
+vector<long double> str_vec2ld_vec(const vector<string>& str_vec){
+  vector<long double> ld_vec;
+  for (int i = 0; i < str_vec.size(); i++){
+    ld_vec.push_back(str2ld(str_vec[i]));
+  }
+  return ld_vec;
+}
+
+long double str2ld(const string& str){
+  try {
+    return stold(str);
+  } catch (const std::invalid_argument& err1) {
+    cerr << "Invalid argument " << err1.what() << "\n";
+    cerr << "Trying to cast " << str << " to long double failed\n";
+    exit(1);
+  } catch (const out_of_range& err2) {
+    cerr << "Out of range error: " << err2.what() << "\n";
+    cerr << "Trying to cast " << str << " to long double failed\n";
+    exit(1);
+  }
+  return -1;
+}
 
 vector<int> string_to_mask(const string& model, int num_features) {
   vector<string> elem = split(model, ',');

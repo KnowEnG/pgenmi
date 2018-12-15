@@ -25,6 +25,9 @@ unsigned int pgm::min_iter = 25;
 unsigned int pgm::max_loglik_decr = 20;
 unsigned int pgm::queue_size = 20;
 
+model::model() : w(), alpha(), name(""), post(), loglik(0), loglik_prev(0){}
+model::model(const vector<long double>& _w, const long double& _alpha, const string& _name) : w(_w), alpha(_alpha), name(_name), post(), loglik(0), loglik_prev(0){}
+
 pgm::pgm(const table& dt, const vector<int> mask, const string& name,
          long double _eps)
     : mask(mask),
@@ -41,6 +44,7 @@ pgm::pgm(const table& dt, const vector<int> mask, const string& name,
   num_features = sum(mask);
   w_names = dt.feat_names;
   init.alpha = 1;
+  init.name = "INITIAL";
   init.iter = 0 ;
   init.loglik = 0;
   init.loglik_prev = 0;
@@ -55,6 +59,7 @@ pgm::pgm(const table& dt, const vector<int> mask, const string& name,
     init.post[i][1] = 1;
   }
   final = init;
+  final.name = "FINAL";
 }
 
 // Initialize parameters from static uniform random number generators
@@ -73,6 +78,7 @@ void pgm::initialize_params() {
   init.loglik = 0;
   init.loglik_prev = init.loglik;
   final = init;
+  final.name = "FINAL";
 }
 
 // Initialize parameters from pgm h. This resets both initial and final models.
@@ -84,6 +90,7 @@ void pgm::initialize_params(const table& dt, const pgm& h) {
   init.loglik = loglikelihood(dt, init);
   init.loglik_prev = init.loglik;
   final = init;
+  final.name = "FINAL";
 }
 
 void pgm::update_loglikelihoods(const table& dt) {
@@ -92,6 +99,24 @@ void pgm::update_loglikelihoods(const table& dt) {
   final.loglik_prev = final.loglik;
   final.loglik = loglikelihood(dt, final);
   return;
+}
+
+// Use only model weights to update posterior
+vector<vector<long double>> pgm::posterior(const table& dt, const vector<long double>& w, const long double& alpha){
+  vector<vector<long double>> post;
+  long double g1 = 0;
+  long double j0 = 0;
+  long double j1 = 0;
+  for (int i = 0; i < dt.num_rows; i++) {
+    vector<long double> v(2,0);
+    g1 = sig(dt.data[i], w);
+    j0 = (1 - g1);
+    j1 = dbeta(dt.pval[i], alpha) * g1;
+    v[0] = j0 / (j0 + j1);
+    v[1] = j1 / (j0 + j1);
+    post.push_back(v);
+  }
+  return post;
 }
 
 // Use only model weights to update posterior

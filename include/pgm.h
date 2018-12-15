@@ -17,6 +17,9 @@ class model {
   long double loglik;
   long double loglik_prev;
   unsigned int iter;
+  string name;
+  model();
+  model(const vector<long double>&, const long double&, const string&);
 };
 
 class pgm {
@@ -65,7 +68,9 @@ class pgm {
   // Static Methods
   static long double loglikelihood(const table&, const vector<long double>&,
                                    const long double);
-
+  static vector<vector<long double>> posterior(const table&,
+                                               const vector<long double>&,
+                                               const long double&);
   // Friend Methods
   // friend ostream& operator<< (ostream&, const pgm& );
 };
