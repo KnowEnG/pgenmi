@@ -48,7 +48,7 @@ Here MODEL is either trained or initial. Thus, each row has both initial and tra
 What distinguishes rows from one another are bitmasks, which are the length of the weight vectors. These bitmasks remove certain parameters from the model. The first bit in a bitmask, corresponding to whether or not to include the intercept term of the model, is always 1.
 
 #### Options
-
+```
   -a,  --all_disable      Disable both H_ALL and H_NULL model runs.
   -d,  --drug             Drug name (Default is DRUG).
   -f,  --full_disable     Disable full (H1) model.
@@ -86,7 +86,7 @@ What distinguishes rows from one another are bitmasks, which are the length of t
                             Note that the 2nd list omitted 1.
                             But, feature 1 (intercept) is
                               auto included when omitted.
-                              
+```                              
 ## Running TensorFlow pGENMi
 
 The TensorFlow directory contains a pgenmi.py file that behaves nearly identically to C++ pgenmi; however, it leverages built in optimizers that can be modified and customized. This of course presumes that your machine has python3 and TensorFlow installed.
