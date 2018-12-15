@@ -2,17 +2,19 @@
 
 This github page contains pGENMi code to associate TFs with Drugs. The original paper in which v1 was applied is published in Genome Research https://www.ncbi.nlm.nih.gov/pubmed/29898900.
 
-### Making
+### Make
 Modify Makefile with your platforms specific needs. This code uses C++11.
 The given Makefile assumes a .obj and bin directory. Simply make all as below:
 
     make all
   
-This should produce pgenmi which is the main program that produces output on the likelihoods for various models, by default two: one with all (H_ALL) features and one with only the intercept (H_0 or H_NULL or H_NULL_X0).
+This should produce pgenmi which is the main program that produces output on the likelihoods for various models, by default two: one with all (H_ALL or H_FULL or H1) features and one with only the intercept (H0 or H_0 or H_NULL or H_NULL_X0).
+
+It should also produce postodds which is a program that, given model strings and data file, outputs posterior probabilities for each gene's latent variable being 1 contingent on the model parameters and evidences and pvalues. It should also produce posterior odds, which are simply the ratio of two seperate models' posterior on a given gene. The rest of the README.md will talk about pgenmi, but it will be updated in the future to include postodds.
 
 ### Input Data
 
-The format of the data to pgmllr is TSV. It includes a header like below:
+The format of the data to pgenmi is TSV. It includes a header like below:
 ```
 GENE    PVAL    A0  A1  A2
 GENE_A  0.01    1   1   0
@@ -21,8 +23,9 @@ GENE_C  0.04    1   1   1
 ...
 GENE_D  1.00    1   0   0
 ```
-The header should include PVAL in the first column and then A#, where the # indexes the regulatory evidence for the column.
-All subsequent datalines should begin with a symbol in the first column, p-value in the second column, a 1 for the third column, and then the respective regulatory evidences for the remaining columns.
+All  datalines should begin with a symbol in the first column, p-value in the second column, a 1 for the third column, and then the respective regulatory evidences for the remaining columns.
+
+Regulatory evidences need not be binary - they can be continuous. **However: C++ pGENMi was tested  using binary feature data and performance on continuous data may be unexpected**
 
 ### Running C++ pGENMi
 
