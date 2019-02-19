@@ -19,14 +19,14 @@ def main(args):
   output_file = args.output_file
   
   # Read pgenmi input and make GENE rownames and remove column
-  din = pd.read_table(input_file)
+  din = pd.read_csv(input_file, sep="\t")
   din.index = din["GENE"]
   din = din.iloc[:,1:] 
   dout = din
   genes = din.index
   
   # Read pgenmi output and extract w,a and make name (H_ALL,H_KD,etc..) rownames
-  dpfull = pd.read_table(param_file) 
+  dpfull = pd.read_csv(param_file, sep="\t") 
   dp = dpfull.iloc[:,list(range(dpfull.columns.get_loc("TRAINED_LOGLIK_PREV") + 1, len(dpfull.columns)))]
   dp.index = dpfull["NAME"]
 
@@ -40,16 +40,16 @@ def main(args):
   # Make output
   #dout = pd.concat([dout, pd.DataFrame(1- sigmoid(np.matmul(dx, dw.transpose())), index=genes,columns=[x + '_' + model_prob[0] for x in list(models)])], axis=1) 
   model_prob = pd.DataFrame([[x + '_' + i for x in list(models)] for i in pnames], columns=models, index=pnames).transpose()
-  dout[model_prob["PRIOR-0"]] = pd.DataFrame(1- sigmoid(np.matmul(dx, dw.transpose())), index=genes)
+  dout[model_prob["PRIOR-0"]] = pd.DataFrame(1- sigmoid(np.matmul(dx.values, dw.transpose().values)), index=genes)
   dout[model_prob["PRIOR-1"]] = 1 - dout[model_prob["PRIOR-0"]]
   dout[model_prob["LIK-0"]] = dout[model_prob["PRIOR-0"]]
   dout[model_prob["LIK-1"]] = pd.DataFrame(da.apply(lambda x: np.power(dy,x-1)).apply(lambda x: x * da).transpose().values * dout[model_prob["PRIOR-1"]].values, index=genes)
   dout[model_prob["LIK"]]  = pd.DataFrame(dout[model_prob["LIK-0"]].values + dout[model_prob["LIK-1"]].values, index=genes)
   dout[model_prob["POST-0"]] = pd.DataFrame(dout[model_prob["LIK-0"]].values / dout[model_prob["LIK"]].values,index=genes)
   dout[model_prob["POST-1"]]= pd.DataFrame(dout[model_prob["LIK-1"]].values / dout[model_prob["LIK"]].values,index=genes)
-  model_pairs = pd.DataFrame([list(itertools.combinations(model_prob[x],2)) for x in model_prob.columns], index=pnames, columns=['|'.join(x) for x in list(itertools.combinations(models,2))])
-  s = model_pairs.values.flatten()
-  dout[[x[0] + '|' + x[1] for x in s]] = pd.DataFrame([dout[x[0]].values / dout[x[1]].values for x in s], index=[x[0] + '|' + x[1] for x in s], columns=genes).transpose()
+  ratio_pairs = [i for j in [list(itertools.combinations(k,2)) for k in [list(l) for l in model_prob.transpose().values]] for i in j]
+  ratio_names = ['|'.join(i) for i in ratio_pairs]
+  dout[ratio_names] = pd.DataFrame([dout[pair[0]].values / dout[pair[1]].values for pair in ratio_pairs], index=ratio_names, columns=genes).transpose()
   dout.to_csv(output_file,sep="\t") 
   
   
